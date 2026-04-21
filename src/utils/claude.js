@@ -104,6 +104,39 @@ const parseJSON = (text) => {
   }
 };
 
+const tryParseWithRepairs = (text) => {
+  const attempts = [];
+  const base = stripFences(text || '').trim();
+  if (!base) {
+    throw new Error('Gemini returned an empty response.');
+  }
+
+  attempts.push(base);
+
+  const blockStart = base.indexOf('{');
+  const blockEnd = base.lastIndexOf('}');
+  if (blockStart >= 0 && blockEnd > blockStart) {
+    attempts.push(base.slice(blockStart, blockEnd + 1));
+  }
+
+  const repaired = attempts[attempts.length - 1]
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/,\s*([}\]])/g, '$1');
+
+  attempts.push(repaired);
+
+  for (const candidate of attempts) {
+    try {
+      return parseJSON(candidate);
+    } catch {
+      // continue
+    }
+  }
+
+  throw new Error('Model returned malformed JSON. Please click Generate again.');
+};
+
 const GEMINI_PREFERRED_MODELS = [
   'gemini-2.5-flash',
   'gemini-2.0-flash',
@@ -188,7 +221,8 @@ const callGemini = async ({ apiKey, systemText, userText, maxOutputTokens, tempe
       }],
       generationConfig: {
         maxOutputTokens,
-        temperature
+        temperature,
+        responseMimeType: 'application/json'
       }
     })
   });
@@ -229,7 +263,7 @@ export const generateMessages = async (payload) => {
 
   const text = getGeminiText(parsedResponse);
 
-  return parseJSON(text);
+  return tryParseWithRepairs(text);
 };
 
 export const analyzeOpportunity = async ({ apiKey, opportunityText, purpose, platform }) => {
@@ -257,5 +291,5 @@ export const analyzeOpportunity = async ({ apiKey, opportunityText, purpose, pla
 
   const text = getGeminiText(parsedResponse);
 
-  return parseJSON(text);
+  return tryParseWithRepairs(text);
 };
