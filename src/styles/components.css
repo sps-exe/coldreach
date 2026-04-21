@@ -93,6 +93,17 @@ textarea:focus {
   color: var(--clr-warn-text);
 }
 
+.field-feedback.success:not(:empty) {
+  border-color: var(--clr-success-border);
+  background: var(--clr-success-bg);
+  color: var(--clr-success-text);
+}
+
+.inline-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
 .button {
   border: 1px solid var(--clr-border);
   border-radius: var(--radius-md);
@@ -330,8 +341,38 @@ textarea:focus {
 .tips-grid {
   margin-top: var(--sp-4);
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sp-4);
+}
+
+.followups-wrap {
+  margin-top: var(--sp-4);
+}
+
+.followups-list {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.followup-item {
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3);
+  background: var(--clr-surface);
+}
+
+.followup-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--clr-text-secondary);
+  margin-bottom: var(--sp-2);
+}
+
+.followup-body {
+  font-size: 14px;
+  color: var(--clr-text-primary);
+  line-height: 1.45;
+  white-space: pre-wrap;
 }
 
 .tip-card {
@@ -410,6 +451,10 @@ textarea:focus {
 
   .messages-grid {
     grid-template-columns: 1fr;
+  }
+
+  .tips-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

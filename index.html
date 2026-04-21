@@ -103,6 +103,15 @@
             <section class="form-section">
               <h2>The outreach</h2>
 
+              <div class="field">
+                <label for="opportunityText">Paste job post / opportunity brief <span class="hint-inline">optional auto-fill</span></label>
+                <textarea id="opportunityText" name="opportunityText" rows="4" placeholder="Paste the full role description, collaboration brief, or opportunity message here..."></textarea>
+                <div class="inline-actions">
+                  <button id="analyzeOpportunityBtn" type="button" class="button ghost">Analyze & auto-fill</button>
+                </div>
+                <p id="analysisStatus" class="field-feedback" aria-live="polite"></p>
+              </div>
+
               <div class="grid two-col outreach-top-row">
                 <div class="field">
                   <label for="purpose">Purpose</label>
@@ -156,6 +165,13 @@
 
         <div id="messageCards" class="messages-grid"></div>
 
+        <div id="followUpsWrap" class="followups-wrap hidden">
+          <article class="tip-card">
+            <h3>Follow-up sequence</h3>
+            <div id="followUpsList" class="followups-list"></div>
+          </article>
+        </div>
+
         <div class="tips-grid">
           <article class="tip-card">
             <h3>Before you send</h3>
@@ -165,6 +181,11 @@
           <article class="tip-card">
             <h3>What not to do</h3>
             <ul id="warningsList"></ul>
+          </article>
+
+          <article class="tip-card">
+            <h3>Quality checks</h3>
+            <ul id="qaList"></ul>
           </article>
         </div>
 

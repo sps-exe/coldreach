@@ -33,13 +33,44 @@ STRATEGY BY PURPOSE:
 Respond ONLY with this JSON, no other text:
 {
   "chosen_repo": { "name": "", "reason": "" },
+  "repo_candidates": [
+    { "name": "", "reason": "", "fit_score": 0 }
+  ],
   "versions": [
     { "label": "Warm & Human", "subject": "", "message": "", "why_it_works": "" },
     { "label": "Sharp & Professional", "subject": "", "message": "", "why_it_works": "" },
     { "label": "Bold & Pattern-Interrupt", "subject": "", "message": "", "why_it_works": "" }
   ],
+  "follow_ups": [
+    { "label": "Follow-up 1 (3 days)", "message": "" },
+    { "label": "Follow-up 2 (7 days)", "message": "" }
+  ],
   "personalization_tips": ["", "", ""],
   "avoid": ["", ""]
+}`;
+
+const ANALYZE_SYSTEM = `You are an opportunity parser and outreach strategist.
+
+Given a pasted job post, collaboration brief, or opportunity text, extract practical data for auto-filling an outreach form.
+
+Rules:
+- Respond with JSON only.
+- No placeholders or brackets.
+- Infer likely purpose and platform from context.
+- Keep extracted text concise and usable.
+
+Return exactly:
+{
+  "suggested_purpose": "",
+  "suggested_platform": "LinkedIn DM or Email",
+  "suggested_skill": "",
+  "recipient_title": "",
+  "recipient_company": "",
+  "context_clue": "",
+  "extra_notes": "",
+  "keywords": ["", "", ""],
+  "repo_focus_keywords": ["", "", ""],
+  "followup_strategy": ""
 }`;
 
 const stripFences = (text) => {
@@ -94,6 +125,57 @@ export const generateMessages = async (payload) => {
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
       system: SYSTEM,
+      messages: [{ role: 'user', content: USER }]
+    })
+  });
+
+  const raw = await response.text();
+
+  if (!response.ok) {
+    throw new Error(raw || `Anthropic API error (${response.status}).`);
+  }
+
+  let parsedResponse;
+  try {
+    parsedResponse = JSON.parse(raw);
+  } catch {
+    throw new Error(raw || 'Unexpected response from Anthropic API.');
+  }
+
+  const text = Array.isArray(parsedResponse.content)
+    ? parsedResponse.content.map((part) => part.text || '').join('\n')
+    : '';
+
+  return parseJSON(text || raw);
+};
+
+export const analyzeOpportunity = async ({ apiKey, opportunityText, purpose, platform }) => {
+  if (!apiKey) {
+    throw new Error('Missing Anthropic API key.');
+  }
+
+  if (!(opportunityText || '').trim()) {
+    throw new Error('Paste an opportunity brief first.');
+  }
+
+  const USER = JSON.stringify({
+    opportunity_text: opportunityText,
+    current_purpose: purpose || '',
+    current_platform: platform || ''
+  });
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: ANALYZE_SYSTEM,
       messages: [{ role: 'user', content: USER }]
     })
   });

@@ -3,6 +3,9 @@ const repoBanner = document.getElementById('repoBanner');
 const messageCards = document.getElementById('messageCards');
 const tipsList = document.getElementById('tipsList');
 const warningsList = document.getElementById('warningsList');
+const qaList = document.getElementById('qaList');
+const followUpsWrap = document.getElementById('followUpsWrap');
+const followUpsList = document.getElementById('followUpsList');
 
 const clearNode = (node) => {
   while (node.firstChild) {
@@ -102,6 +105,47 @@ export const renderOutput = (data) => {
     const item = document.createElement('li');
     item.textContent = warning;
     warningsList.appendChild(item);
+  });
+
+  clearNode(followUpsList);
+  const followUps = Array.isArray(data?.follow_ups) ? data.follow_ups : [];
+  if (followUps.length) {
+    followUpsWrap.classList.remove('hidden');
+    followUps.forEach((entry) => {
+      const item = document.createElement('div');
+      item.className = 'followup-item';
+
+      const label = document.createElement('p');
+      label.className = 'followup-label';
+      label.textContent = entry.label || 'Follow-up';
+
+      const body = document.createElement('p');
+      body.className = 'followup-body';
+      body.textContent = entry.message || '';
+
+      const copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'button ghost-sm';
+      copy.textContent = 'Copy follow-up';
+      copy.addEventListener('click', () => {
+        copyText(entry.message || '', copy);
+      });
+
+      item.appendChild(label);
+      item.appendChild(body);
+      item.appendChild(copy);
+      followUpsList.appendChild(item);
+    });
+  } else {
+    followUpsWrap.classList.add('hidden');
+  }
+
+  clearNode(qaList);
+  const qualityChecks = Array.isArray(data?.quality_checks) ? data.quality_checks : [];
+  qualityChecks.forEach((result) => {
+    const item = document.createElement('li');
+    item.textContent = result;
+    qaList.appendChild(item);
   });
 
   outputSection.classList.remove('hidden');
