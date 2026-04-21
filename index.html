@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ColdReach · Cold Outreach Message Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./src/styles/tokens.css" />
+  <link rel="stylesheet" href="./src/styles/reset.css" />
+  <link rel="stylesheet" href="./src/styles/main.css" />
+  <link rel="stylesheet" href="./src/styles/components.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="site-header">
+      <div class="container header-inner">
+        <div class="brand">
+          <div class="brand-mark">CR</div>
+          <div class="brand-name">ColdReach</div>
+        </div>
+        <button id="settingsTrigger" class="icon-button" type="button" aria-label="Open settings">⚙</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero container">
+        <p class="hero-eyebrow">Outreach, automated</p>
+        <h1>Cold messages that actually get replies</h1>
+        <p class="hero-subline">Pulls your GitHub projects, reads the context, writes the message.</p>
+      </section>
+
+      <section class="container">
+        <div class="form-card">
+          <form id="outreachForm" novalidate>
+            <section class="form-section">
+              <h2>About you</h2>
+
+              <div class="grid two-col about-you-row-top">
+                <div class="field">
+                  <label for="senderName">Your name</label>
+                  <input id="senderName" name="senderName" type="text" placeholder="Your full name" />
+                </div>
+
+                <div class="field">
+                  <label for="githubUsername">GitHub username</label>
+                  <div class="inline-input">
+                    <input id="githubUsername" name="githubUsername" type="text" placeholder="octocat" />
+                    <button id="fetchReposBtn" type="button" class="button ghost-sm">Fetch repos</button>
+                  </div>
+                  <p id="repoError" class="field-feedback error" aria-live="polite"></p>
+                </div>
+              </div>
+
+              <div class="grid two-col">
+                <div class="field">
+                  <label for="college">College</label>
+                  <input id="college" name="college" type="text" value="Rishihood University" />
+                </div>
+
+                <div class="field">
+                  <label for="degree">Degree</label>
+                  <input id="degree" name="degree" type="text" value="B.Tech CS & AI" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="skill">Skill to highlight</label>
+                <input id="skill" name="skill" type="text" placeholder="machine learning, video editing, React" />
+              </div>
+
+              <div id="reposWrap" class="repos-wrap hidden">
+                <p class="repos-title">Fetched repos</p>
+                <div id="repoChips" class="repo-chips"></div>
+              </div>
+            </section>
+
+            <hr class="section-divider" />
+
+            <section class="form-section">
+              <h2>About them</h2>
+              <div class="grid three-col">
+                <div class="field">
+                  <label for="recipientName">Recipient name</label>
+                  <input id="recipientName" name="recipientName" type="text" />
+                </div>
+
+                <div class="field">
+                  <label for="recipientTitle">Title / Role</label>
+                  <input id="recipientTitle" name="recipientTitle" type="text" />
+                </div>
+
+                <div class="field">
+                  <label for="recipientCompany">Company or Channel</label>
+                  <input id="recipientCompany" name="recipientCompany" type="text" />
+                </div>
+              </div>
+            </section>
+
+            <hr class="section-divider" />
+
+            <section class="form-section">
+              <h2>The outreach</h2>
+
+              <div class="grid two-col outreach-top-row">
+                <div class="field">
+                  <label for="purpose">Purpose</label>
+                  <select id="purpose" name="purpose">
+                    <option>Job / Internship</option>
+                    <option>YouTube Collaboration</option>
+                    <option>Mentorship & Advice</option>
+                    <option>Freelance Project</option>
+                    <option>Podcast / Interview</option>
+                    <option>Research Opportunity</option>
+                    <option>Networking</option>
+                    <option>Custom...</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label>Platform</label>
+                  <div id="platformToggle" class="toggle-pill" role="group" aria-label="Platform toggle">
+                    <button type="button" class="toggle-btn active" data-platform="LinkedIn DM">LinkedIn DM</button>
+                    <button type="button" class="toggle-btn" data-platform="Email">Email</button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="customPurposeWrap" class="field hidden">
+                <label for="customPurpose">Custom purpose</label>
+                <input id="customPurpose" name="customPurpose" type="text" placeholder="Describe your outreach purpose" />
+              </div>
+
+              <div class="field">
+                <label for="context">Context clue <span class="hint-inline">optional but powerful</span></label>
+                <textarea id="context" name="context" rows="2" placeholder="Specific post, video, tweet, or thing you noticed"></textarea>
+              </div>
+
+              <div class="field">
+                <label for="extraNotes">Extra notes <span class="hint-inline">optional</span></label>
+                <textarea id="extraNotes" name="extraNotes" rows="2" placeholder="Anything else the AI should know"></textarea>
+              </div>
+
+              <p id="apiKeyWarning" class="field-feedback warn" aria-live="polite"></p>
+              <p id="globalError" class="field-feedback error" aria-live="polite"></p>
+
+              <button id="generateBtn" class="button primary full" type="submit">Generate messages</button>
+            </section>
+          </form>
+        </div>
+      </section>
+
+      <section id="outputSection" class="container output-section hidden">
+        <div id="repoBanner" class="repo-banner"></div>
+
+        <div id="messageCards" class="messages-grid"></div>
+
+        <div class="tips-grid">
+          <article class="tip-card">
+            <h3>Before you send</h3>
+            <ul id="tipsList"></ul>
+          </article>
+
+          <article class="tip-card">
+            <h3>What not to do</h3>
+            <ul id="warningsList"></ul>
+          </article>
+        </div>
+
+        <div class="regenerate-wrap">
+          <button id="regenerateBtn" class="button ghost" type="button">Regenerate</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Built for Rishihood University · B.Tech CS & AI</p>
+    </footer>
+  </div>
+
+  <div id="settingsOverlay" class="settings-overlay hidden"></div>
+  <aside id="settingsPanel" class="settings-panel" aria-label="Settings panel" aria-hidden="true">
+    <div class="settings-header">
+      <h2>Settings</h2>
+      <button id="settingsClose" class="icon-button" type="button" aria-label="Close settings">✕</button>
+    </div>
+
+    <div class="field">
+      <label for="settingsApiKey">Anthropic API Key</label>
+      <input id="settingsApiKey" type="password" placeholder="sk-ant-..." autocomplete="off" />
+    </div>
+
+    <div class="field">
+      <label for="settingsGithub">GitHub Username</label>
+      <input id="settingsGithub" type="text" placeholder="octocat" />
+    </div>
+
+    <div class="field">
+      <label for="settingsCollege">College</label>
+      <input id="settingsCollege" type="text" />
+    </div>
+
+    <div class="field">
+      <label for="settingsDegree">Degree</label>
+      <input id="settingsDegree" type="text" />
+    </div>
+
+    <button id="settingsSave" class="button primary full" type="button">Save</button>
+  </aside>
+
+  <script type="module" src="./src/utils/storage.js"></script>
+  <script type="module" src="./src/utils/github.js"></script>
+  <script type="module" src="./src/utils/claude.js"></script>
+  <script type="module" src="./src/components/settings.js"></script>
+  <script type="module" src="./src/components/repoFetcher.js"></script>
+  <script type="module" src="./src/components/outputRenderer.js"></script>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
