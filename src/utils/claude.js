@@ -73,6 +73,88 @@ Return exactly:
   "followup_strategy": ""
 }`;
 
+const GENERATE_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    chosen_repo: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        reason: { type: 'string' }
+      },
+      required: ['name', 'reason']
+    },
+    repo_candidates: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          reason: { type: 'string' },
+          fit_score: { type: 'number' }
+        },
+        required: ['name', 'reason', 'fit_score']
+      }
+    },
+    versions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          label: { type: 'string' },
+          subject: { type: 'string' },
+          message: { type: 'string' },
+          why_it_works: { type: 'string' }
+        },
+        required: ['label', 'subject', 'message', 'why_it_works']
+      }
+    },
+    follow_ups: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          label: { type: 'string' },
+          message: { type: 'string' }
+        },
+        required: ['label', 'message']
+      }
+    },
+    personalization_tips: {
+      type: 'array',
+      items: { type: 'string' }
+    },
+    avoid: {
+      type: 'array',
+      items: { type: 'string' }
+    }
+  },
+  required: ['chosen_repo', 'repo_candidates', 'versions', 'follow_ups', 'personalization_tips', 'avoid']
+};
+
+const ANALYZE_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    suggested_purpose: { type: 'string' },
+    suggested_platform: { type: 'string' },
+    suggested_skill: { type: 'string' },
+    recipient_title: { type: 'string' },
+    recipient_company: { type: 'string' },
+    context_clue: { type: 'string' },
+    extra_notes: { type: 'string' },
+    keywords: {
+      type: 'array',
+      items: { type: 'string' }
+    },
+    repo_focus_keywords: {
+      type: 'array',
+      items: { type: 'string' }
+    },
+    followup_strategy: { type: 'string' }
+  },
+  required: ['suggested_purpose', 'suggested_platform', 'suggested_skill', 'recipient_title', 'recipient_company', 'context_clue', 'extra_notes', 'keywords', 'repo_focus_keywords', 'followup_strategy']
+};
+
 const stripFences = (text) => {
   const value = (text || '').trim();
   if (!value.startsWith('```')) {
@@ -204,7 +286,7 @@ const resolveGeminiModel = async (apiKey) => {
   throw new Error('No Gemini model with generateContent support is available for this API key.');
 };
 
-const callGemini = async ({ apiKey, systemText, userText, maxOutputTokens, temperature }) => {
+const callGemini = async ({ apiKey, systemText, userText, maxOutputTokens, temperature, responseSchema }) => {
   const model = await resolveGeminiModel(apiKey);
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
@@ -222,7 +304,8 @@ const callGemini = async ({ apiKey, systemText, userText, maxOutputTokens, tempe
       generationConfig: {
         maxOutputTokens,
         temperature,
-        responseMimeType: 'application/json'
+        responseMimeType: 'application/json',
+        ...(responseSchema ? { responseSchema } : {})
       }
     })
   });
@@ -244,6 +327,39 @@ const callGemini = async ({ apiKey, systemText, userText, maxOutputTokens, tempe
   }
 };
 
+const parseFromGeminiResponse = (parsedResponse) => {
+  const text = getGeminiText(parsedResponse);
+
+  if (!text) {
+    throw new Error('Model returned empty content.');
+  }
+
+  return tryParseWithRepairs(text);
+};
+
+const callAndParseWithRetry = async ({ apiKey, systemText, userText, maxOutputTokens, temperature, responseSchema }) => {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const parsedResponse = await callGemini({
+        apiKey,
+        systemText,
+        userText,
+        maxOutputTokens,
+        temperature: attempt === 1 ? temperature : 0.1,
+        responseSchema
+      });
+
+      return parseFromGeminiResponse(parsedResponse);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(lastError?.message || 'Failed to parse model output.');
+};
+
 export const generateMessages = async (payload) => {
   const { apiKey, ...publicPayload } = payload;
 
@@ -253,17 +369,14 @@ export const generateMessages = async (payload) => {
 
   const USER = JSON.stringify(publicPayload);
 
-  const parsedResponse = await callGemini({
+  return callAndParseWithRetry({
     apiKey,
     systemText: SYSTEM,
     userText: USER,
     maxOutputTokens: 2000,
-    temperature: 0.5
+    temperature: 0.5,
+    responseSchema: GENERATE_RESPONSE_SCHEMA
   });
-
-  const text = getGeminiText(parsedResponse);
-
-  return tryParseWithRepairs(text);
 };
 
 export const analyzeOpportunity = async ({ apiKey, opportunityText, purpose, platform }) => {
@@ -281,15 +394,12 @@ export const analyzeOpportunity = async ({ apiKey, opportunityText, purpose, pla
     current_platform: platform || ''
   });
 
-  const parsedResponse = await callGemini({
+  return callAndParseWithRetry({
     apiKey,
     systemText: ANALYZE_SYSTEM,
     userText: USER,
     maxOutputTokens: 1000,
-    temperature: 0.3
+    temperature: 0.3,
+    responseSchema: ANALYZE_RESPONSE_SCHEMA
   });
-
-  const text = getGeminiText(parsedResponse);
-
-  return tryParseWithRepairs(text);
 };
