@@ -100,7 +100,24 @@ const parseJSON = (text) => {
       return JSON.parse(candidate);
     }
 
-    throw new Error('Claude returned invalid JSON.');
+    throw new Error('Gemini returned invalid JSON.');
+  }
+};
+
+const GEMINI_MODEL = 'gemini-1.5-flash';
+
+const getGeminiText = (payload) => {
+  const candidates = Array.isArray(payload?.candidates) ? payload.candidates : [];
+  const parts = Array.isArray(candidates[0]?.content?.parts) ? candidates[0].content.parts : [];
+  return parts.map((part) => part?.text || '').join('\n').trim();
+};
+
+const extractGeminiError = (raw, status) => {
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed?.error?.message || raw || `Gemini API error (${status}).`;
+  } catch {
+    return raw || `Gemini API error (${status}).`;
   }
 };
 
@@ -108,50 +125,52 @@ export const generateMessages = async (payload) => {
   const { apiKey, ...publicPayload } = payload;
 
   if (!apiKey) {
-    throw new Error('Missing Anthropic API key.');
+    throw new Error('Missing Gemini API key.');
   }
 
   const USER = JSON.stringify(publicPayload);
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
-      system: SYSTEM,
-      messages: [{ role: 'user', content: USER }]
+      systemInstruction: {
+        parts: [{ text: SYSTEM }]
+      },
+      contents: [{
+        role: 'user',
+        parts: [{ text: USER }]
+      }],
+      generationConfig: {
+        maxOutputTokens: 2000,
+        temperature: 0.5
+      }
     })
   });
 
   const raw = await response.text();
 
   if (!response.ok) {
-    throw new Error(raw || `Anthropic API error (${response.status}).`);
+    throw new Error(extractGeminiError(raw, response.status));
   }
 
   let parsedResponse;
   try {
     parsedResponse = JSON.parse(raw);
   } catch {
-    throw new Error(raw || 'Unexpected response from Anthropic API.');
+    throw new Error(raw || 'Unexpected response from Gemini API.');
   }
 
-  const text = Array.isArray(parsedResponse.content)
-    ? parsedResponse.content.map((part) => part.text || '').join('\n')
-    : '';
+  const text = getGeminiText(parsedResponse);
 
   return parseJSON(text || raw);
 };
 
 export const analyzeOpportunity = async ({ apiKey, opportunityText, purpose, platform }) => {
   if (!apiKey) {
-    throw new Error('Missing Anthropic API key.');
+    throw new Error('Missing Gemini API key.');
   }
 
   if (!(opportunityText || '').trim()) {
@@ -164,38 +183,40 @@ export const analyzeOpportunity = async ({ apiKey, opportunityText, purpose, pla
     current_platform: platform || ''
   });
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system: ANALYZE_SYSTEM,
-      messages: [{ role: 'user', content: USER }]
+      systemInstruction: {
+        parts: [{ text: ANALYZE_SYSTEM }]
+      },
+      contents: [{
+        role: 'user',
+        parts: [{ text: USER }]
+      }],
+      generationConfig: {
+        maxOutputTokens: 1000,
+        temperature: 0.3
+      }
     })
   });
 
   const raw = await response.text();
 
   if (!response.ok) {
-    throw new Error(raw || `Anthropic API error (${response.status}).`);
+    throw new Error(extractGeminiError(raw, response.status));
   }
 
   let parsedResponse;
   try {
     parsedResponse = JSON.parse(raw);
   } catch {
-    throw new Error(raw || 'Unexpected response from Anthropic API.');
+    throw new Error(raw || 'Unexpected response from Gemini API.');
   }
 
-  const text = Array.isArray(parsedResponse.content)
-    ? parsedResponse.content.map((part) => part.text || '').join('\n')
-    : '';
+  const text = getGeminiText(parsedResponse);
 
   return parseJSON(text || raw);
 };

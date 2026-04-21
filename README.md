@@ -1,20 +1,20 @@
 # ColdReach
 
-Production-grade cold outreach message generator that pulls GitHub repos, understands context, and generates personalized outreach drafts with Claude.
+Production-grade cold outreach message generator that pulls GitHub repos, understands context, and generates personalized outreach drafts with Gemini.
 
 ## Run locally
 
 No install needed.
 
 1. Open [index.html](index.html) in a modern browser.
-2. Add your Anthropic API key in Settings.
+2. Add your Gemini API key in Settings.
 3. Fill the form, fetch repos, and generate messages.
 
-## Anthropic API key
+## Gemini API key
 
 Create or manage your API key at:
 
-https://console.anthropic.com
+https://aistudio.google.com/app/apikey
 
 ## File structure
 
@@ -26,7 +26,7 @@ https://console.anthropic.com
 - [src/styles/components.css](src/styles/components.css) — form controls, cards, buttons, toggles, settings panel, output UI
 - [src/utils/storage.js](src/utils/storage.js) — localStorage helpers (`get`, `set`, `clear`)
 - [src/utils/github.js](src/utils/github.js) — GitHub API fetch + repo parsing
-- [src/utils/claude.js](src/utils/claude.js) — Claude API call and strict JSON parsing
+- [src/utils/claude.js](src/utils/claude.js) — Gemini API call and strict JSON parsing
 - [src/components/settings.js](src/components/settings.js) — settings panel behavior and persistence
 - [src/components/repoFetcher.js](src/components/repoFetcher.js) — fetch repos + chip rendering + shared repo state
 - [src/components/outputRenderer.js](src/components/outputRenderer.js) — output cards, copy actions, tips/warnings rendering
@@ -35,4 +35,4 @@ https://console.anthropic.com
 
 - API key is stored in browser `localStorage` only.
 - GitHub repository data is fetched from the public GitHub REST API without auth.
-- Anthropic requests are sent directly from the browser to the Messages API.
+- Gemini requests are sent directly from the browser to the Google Generative Language API.

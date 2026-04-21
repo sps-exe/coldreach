@@ -275,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const validatePayload = (payload) => {
     if (!payload.apiKey) {
-      apiKeyWarning.textContent = 'Add your Anthropic API key in settings to generate messages.';
+      apiKeyWarning.textContent = 'Add your Gemini API key in settings to generate messages.';
       return false;
     }
 
@@ -349,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const apiKey = get(KEYS.apiKey) || '';
     if (!apiKey) {
-      analysisStatus.textContent = 'Add your Anthropic API key in settings first.';
+      analysisStatus.textContent = 'Add your Gemini API key in settings first.';
       analysisStatus.className = 'field-feedback warn';
       return;
     }
