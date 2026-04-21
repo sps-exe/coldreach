@@ -104,7 +104,15 @@ const parseJSON = (text) => {
   }
 };
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_PREFERRED_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro',
+  'gemini-pro'
+];
+
+let resolvedModelCache = null;
 
 const getGeminiText = (payload) => {
   const candidates = Array.isArray(payload?.candidates) ? payload.candidates : [];
@@ -121,6 +129,87 @@ const extractGeminiError = (raw, status) => {
   }
 };
 
+const normalizeModelName = (modelName) => (modelName || '').replace(/^models\//, '').trim();
+
+const listGeminiModels = async (apiKey) => {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+  const raw = await response.text();
+
+  if (!response.ok) {
+    throw new Error(extractGeminiError(raw, response.status));
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed?.models) ? parsed.models : [];
+  } catch {
+    throw new Error('Failed to read available Gemini models.');
+  }
+};
+
+const resolveGeminiModel = async (apiKey) => {
+  if (resolvedModelCache) {
+    return resolvedModelCache;
+  }
+
+  const models = await listGeminiModels(apiKey);
+  const supportsGenerate = models.filter((model) => Array.isArray(model?.supportedGenerationMethods) && model.supportedGenerationMethods.includes('generateContent'));
+  const availableNames = supportsGenerate.map((model) => normalizeModelName(model?.name));
+
+  for (const preferred of GEMINI_PREFERRED_MODELS) {
+    if (availableNames.includes(preferred)) {
+      resolvedModelCache = preferred;
+      return preferred;
+    }
+  }
+
+  if (availableNames.length > 0) {
+    resolvedModelCache = availableNames[0];
+    return availableNames[0];
+  }
+
+  throw new Error('No Gemini model with generateContent support is available for this API key.');
+};
+
+const callGemini = async ({ apiKey, systemText, userText, maxOutputTokens, temperature }) => {
+  const model = await resolveGeminiModel(apiKey);
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: systemText }]
+      },
+      contents: [{
+        role: 'user',
+        parts: [{ text: userText }]
+      }],
+      generationConfig: {
+        maxOutputTokens,
+        temperature
+      }
+    })
+  });
+
+  const raw = await response.text();
+
+  if (!response.ok) {
+    const message = extractGeminiError(raw, response.status);
+    if (/not found for api version|is not found/i.test(message)) {
+      resolvedModelCache = null;
+    }
+    throw new Error(message);
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error(raw || 'Unexpected response from Gemini API.');
+  }
+};
+
 export const generateMessages = async (payload) => {
   const { apiKey, ...publicPayload } = payload;
 
@@ -130,42 +219,17 @@ export const generateMessages = async (payload) => {
 
   const USER = JSON.stringify(publicPayload);
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: SYSTEM }]
-      },
-      contents: [{
-        role: 'user',
-        parts: [{ text: USER }]
-      }],
-      generationConfig: {
-        maxOutputTokens: 2000,
-        temperature: 0.5
-      }
-    })
+  const parsedResponse = await callGemini({
+    apiKey,
+    systemText: SYSTEM,
+    userText: USER,
+    maxOutputTokens: 2000,
+    temperature: 0.5
   });
-
-  const raw = await response.text();
-
-  if (!response.ok) {
-    throw new Error(extractGeminiError(raw, response.status));
-  }
-
-  let parsedResponse;
-  try {
-    parsedResponse = JSON.parse(raw);
-  } catch {
-    throw new Error(raw || 'Unexpected response from Gemini API.');
-  }
 
   const text = getGeminiText(parsedResponse);
 
-  return parseJSON(text || raw);
+  return parseJSON(text);
 };
 
 export const analyzeOpportunity = async ({ apiKey, opportunityText, purpose, platform }) => {
@@ -183,40 +247,15 @@ export const analyzeOpportunity = async ({ apiKey, opportunityText, purpose, pla
     current_platform: platform || ''
   });
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: ANALYZE_SYSTEM }]
-      },
-      contents: [{
-        role: 'user',
-        parts: [{ text: USER }]
-      }],
-      generationConfig: {
-        maxOutputTokens: 1000,
-        temperature: 0.3
-      }
-    })
+  const parsedResponse = await callGemini({
+    apiKey,
+    systemText: ANALYZE_SYSTEM,
+    userText: USER,
+    maxOutputTokens: 1000,
+    temperature: 0.3
   });
-
-  const raw = await response.text();
-
-  if (!response.ok) {
-    throw new Error(extractGeminiError(raw, response.status));
-  }
-
-  let parsedResponse;
-  try {
-    parsedResponse = JSON.parse(raw);
-  } catch {
-    throw new Error(raw || 'Unexpected response from Gemini API.');
-  }
 
   const text = getGeminiText(parsedResponse);
 
-  return parseJSON(text || raw);
+  return parseJSON(text);
 };
